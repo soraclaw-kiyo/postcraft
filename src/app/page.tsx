@@ -1,234 +1,162 @@
-"use client";
+import Link from "next/link";
+import { BLOG_POSTS } from "@/lib/blog-data";
+import { SITE_CONFIG } from "@/lib/site-config";
 
-import { useState } from "react";
-
-const INDUSTRIES = [
-  "飲食店",
-  "美容・サロン",
-  "小売・ショップ",
-  "サービス業",
-  "EC・通販",
-  "フリーランス",
-  "その他",
+const CATEGORIES = [
+  { emoji: "💬", name: "AIチャット", description: "ChatGPT・Claude・Geminiなど" },
+  { emoji: "🎨", name: "AI画像生成", description: "Midjourney・DALL-E・Stable Diffusion" },
+  { emoji: "💻", name: "AIコーディング", description: "Cursor・GitHub Copilotなど" },
+  { emoji: "✍️", name: "AIライティング", description: "Notion AI・Jasperなど" },
+  { emoji: "📊", name: "AI比較", description: "ツール同士の徹底比較記事" },
 ];
-
-const PLATFORMS = [
-  { id: "X", label: "X (Twitter)" },
-  { id: "Instagram", label: "Instagram" },
-  { id: "TikTok", label: "TikTok" },
-];
-
-interface GenerateResult {
-  posts: string[];
-  hashtags: string[];
-}
 
 export default function Home() {
-  const [industry, setIndustry] = useState(INDUSTRIES[0]);
-  const [message, setMessage] = useState("");
-  const [platform, setPlatform] = useState("X");
-  const [result, setResult] = useState<GenerateResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-
-  const handleGenerate = async () => {
-    if (!message.trim()) {
-      setError("伝えたいことを入力してください");
-      return;
-    }
-    setError("");
-    setLoading(true);
-    setResult(null);
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry, message, platform }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "生成に失敗しました");
-      }
-
-      const data: GenerateResult = await res.json();
-      setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "生成に失敗しました");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCopy = async (text: string, index: number) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-  };
-
-  const toneLabels = ["カジュアル", "プロフェッショナル", "ストーリー風"];
+  const latestPosts = BLOG_POSTS.slice(0, 6);
+  const reviewPosts = BLOG_POSTS.filter((p) => p.type === "review").slice(0, 3);
+  const comparisonPosts = BLOG_POSTS.filter((p) => p.type === "comparison").slice(0, 3);
 
   return (
-    <main className="min-h-screen px-4 py-8 md:py-16">
-      <div className="mx-auto max-w-2xl">
-        {/* Header */}
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-            PostCraft <span className="text-accent">✦</span>
-          </h1>
-          <p className="mt-2 text-text-secondary">
-            AI SNS投稿文ジェネレーター
-          </p>
-        </div>
+    <>
+      {/* ━━━ HERO ━━━ */}
+      <section className="relative flex min-h-[60vh] flex-col items-center justify-center overflow-hidden px-4 text-center">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -top-32 left-1/2 h-[480px] w-[640px] -translate-x-1/2 rounded-full bg-accent/15 blur-[120px]"
+        />
 
-        {/* Form */}
-        <div className="space-y-6 rounded-2xl border border-border bg-bg-secondary p-6 md:p-8">
-          {/* Industry */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-text-secondary">
-              業種
-            </label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full rounded-lg border border-border bg-bg-tertiary px-4 py-3 text-text-primary outline-none transition focus:border-accent"
-            >
-              {INDUSTRIES.map((ind) => (
-                <option key={ind} value={ind}>
-                  {ind}
-                </option>
-              ))}
-            </select>
-          </div>
+        <span className="relative mb-6 inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/8 px-4 py-1.5 text-xs font-medium tracking-wide text-accent">
+          <span>🤖</span>
+          AIツールを実際に使って本音レビュー
+        </span>
 
-          {/* Message */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-text-secondary">
-              伝えたいこと
-            </label>
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="例: 新メニューのアボカドバーガーが登場！期間限定で20%OFF"
-              rows={3}
-              className="w-full resize-none rounded-lg border border-border bg-bg-tertiary px-4 py-3 text-text-primary placeholder-text-secondary/50 outline-none transition focus:border-accent"
-            />
-          </div>
+        <h1 className="relative text-4xl font-extrabold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl">
+          AIツール、
+          <br />
+          <span className="bg-gradient-to-r from-accent via-purple-400 to-accent bg-clip-text text-transparent">
+            どれを選ぶ？
+          </span>
+        </h1>
 
-          {/* Platform */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-text-secondary">
-              プラットフォーム
-            </label>
-            <div className="flex gap-3">
-              {PLATFORMS.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setPlatform(p.id)}
-                  className={`flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition ${
-                    platform === p.id
-                      ? "border-accent bg-accent/10 text-accent"
-                      : "border-border bg-bg-tertiary text-text-secondary hover:border-accent/50"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <p className="text-sm text-red-400">{error}</p>
-          )}
-
-          {/* Generate Button */}
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="w-full rounded-lg bg-accent py-3.5 text-base font-semibold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg
-                  className="h-5 w-5 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                生成中...
-              </span>
-            ) : (
-              "✨ 投稿文を生成"
-            )}
-          </button>
-        </div>
-
-        {/* Results */}
-        {result && (
-          <div className="mt-8 space-y-4">
-            {result.posts.map((post, i) => (
-              <div
-                key={i}
-                className="rounded-2xl border border-border bg-bg-secondary p-6"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-medium text-accent">
-                    パターン{i + 1}：{toneLabels[i]}
-                  </span>
-                  <button
-                    onClick={() => handleCopy(post, i)}
-                    className="rounded-md border border-border px-3 py-1 text-xs text-text-secondary transition hover:border-accent hover:text-accent"
-                  >
-                    {copiedIndex === i ? "✓ コピー済み" : "コピー"}
-                  </button>
-                </div>
-                <p className="whitespace-pre-wrap leading-relaxed text-text-primary">
-                  {post}
-                </p>
-              </div>
-            ))}
-
-            {/* Hashtags */}
-            <div className="rounded-2xl border border-border bg-bg-secondary p-6">
-              <span className="mb-3 block text-sm font-medium text-accent">
-                推奨ハッシュタグ
-              </span>
-              <div className="flex flex-wrap gap-2">
-                {result.hashtags.map((tag, i) => (
-                  <button
-                    key={i}
-                    onClick={() => navigator.clipboard.writeText(tag)}
-                    className="rounded-full border border-border bg-bg-tertiary px-3 py-1 text-sm text-text-secondary transition hover:border-accent hover:text-accent"
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Footer */}
-        <p className="mt-12 text-center text-xs text-text-secondary/50">
-          Powered by SoraClaw
+        <p className="relative mt-5 max-w-2xl text-base leading-relaxed text-text-secondary sm:text-lg">
+          ChatGPT・Claude・Geminiなど話題のAIツールを
+          <br className="hidden sm:block" />
+          <strong className="text-text-primary">非エンジニアにもわかりやすく</strong>
+          比較・解説。
+          <br className="hidden sm:block" />
+          あなたにぴったりのAIツールが見つかります。
         </p>
-      </div>
-    </main>
+
+        <div className="relative mt-8 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-8 py-4 text-base font-semibold text-white shadow-lg shadow-accent/25 transition hover:bg-accent-hover hover:shadow-accent/35 active:scale-[0.98]"
+          >
+            📖 レビュー記事を読む
+          </Link>
+          <Link
+            href="/blog?type=comparison"
+            className="inline-flex items-center gap-1 rounded-xl border border-border px-6 py-4 text-sm font-medium text-text-secondary transition hover:border-accent/50 hover:text-accent"
+          >
+            ⚖️ AIツール比較を見る
+          </Link>
+        </div>
+      </section>
+
+      {/* ━━━ CATEGORIES ━━━ */}
+      <section className="mx-auto max-w-4xl px-4 py-16">
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          <span className="text-accent">カテゴリ</span>から探す
+        </h2>
+        <p className="mb-10 text-center text-text-secondary">
+          気になるジャンルのAIツールレビューをチェック
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {CATEGORIES.map((cat) => (
+            <Link
+              key={cat.name}
+              href={`/blog?category=${encodeURIComponent(cat.name)}`}
+              className="group rounded-2xl border border-border bg-bg-secondary p-5 transition hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5"
+            >
+              <span className="text-3xl">{cat.emoji}</span>
+              <h3 className="mt-3 text-lg font-bold text-text-primary transition group-hover:text-accent">
+                {cat.name}
+              </h3>
+              <p className="mt-1 text-sm text-text-secondary">{cat.description}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ━━━ LATEST REVIEWS ━━━ */}
+      <section className="mx-auto max-w-4xl px-4 py-16">
+        <h2 className="mb-4 text-center text-2xl font-bold tracking-tight sm:text-3xl">
+          最新<span className="text-accent">レビュー</span>
+        </h2>
+        <p className="mb-10 text-center text-text-secondary">
+          実際に使って書いた本音レビュー
+        </p>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {latestPosts.map((post) => (
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
+              className="group rounded-2xl border border-border bg-bg-secondary p-6 transition hover:border-accent/40 hover:shadow-lg hover:shadow-accent/5"
+            >
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-accent">
+                  {post.category}
+                </span>
+                <span className="text-xs text-text-secondary">{post.readTime}</span>
+              </div>
+              <h3 className="mt-3 text-base font-bold text-text-primary transition group-hover:text-accent line-clamp-2">
+                {post.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-text-secondary line-clamp-2">
+                {post.description}
+              </p>
+              {post.reviewMeta && (
+                <div className="mt-3 flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span
+                      key={star}
+                      className={`text-sm ${
+                        post.reviewMeta!.rating >= star ? "text-yellow-400" : "text-border"
+                      }`}
+                    >
+                      ★
+                    </span>
+                  ))}
+                  <span className="ml-1 text-sm font-medium text-text-secondary">
+                    {post.reviewMeta.rating}
+                  </span>
+                </div>
+              )}
+              <p className="mt-2 text-xs text-text-secondary/60">{post.date}</p>
+            </Link>
+          ))}
+        </div>
+        <div className="mt-8 text-center">
+          <Link
+            href="/blog"
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-6 py-2.5 text-sm font-medium text-text-secondary transition hover:border-accent/50 hover:text-accent"
+          >
+            すべての記事を見る →
+          </Link>
+        </div>
+      </section>
+
+      {/* ━━━ ABOUT ━━━ */}
+      <section className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          {SITE_CONFIG.nameJa}について
+        </h2>
+        <p className="mt-4 text-text-secondary leading-7">
+          {SITE_CONFIG.nameJa}は、AIツールを実際に使って検証し、
+          非エンジニアにもわかりやすく解説するレビューブログです。
+          <br />
+          「結局どれがいいの？」に本音で答えます。
+        </p>
+      </section>
+    </>
   );
 }

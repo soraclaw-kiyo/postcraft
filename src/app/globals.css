@@ -15,3 +15,14 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
 }
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(108, 108, 255, 0.3);
+  color: var(--color-text-primary);
+}
