@@ -52,6 +52,8 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: post.title,
       description: post.description,
+      images: [post.thumbnail || `${SITE_CONFIG.url}/og-default.png`],
+      creator: SITE_CONFIG.twitterHandle,
     },
   };
 }
@@ -74,10 +76,77 @@ export default async function BlogPostPage({
     { name: post.title, url: `${SITE_CONFIG.url}/blog/${post.slug}` },
   ]);
 
+  const renderInline = (text: string) => {
+    // Process bold, inline code, and links
+    const tokens: React.ReactNode[] = [];
+    const regex = /\*\*(.*?)\*\*|`(.*?)`|\[([^\]]+)\]\(([^)]+)\)/g;
+    let lastIndex = 0;
+    let match;
+    let key = 0;
+    while ((match = regex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        tokens.push(text.slice(lastIndex, match.index));
+      }
+      if (match[1] !== undefined) {
+        tokens.push(
+          <strong key={key++} className="text-text-primary font-semibold">
+            {match[1]}
+          </strong>
+        );
+      } else if (match[2] !== undefined) {
+        tokens.push(
+          <code key={key++} className="rounded bg-bg-tertiary px-1.5 py-0.5 text-sm font-mono text-accent">
+            {match[2]}
+          </code>
+        );
+      } else if (match[3] !== undefined) {
+        tokens.push(
+          <a
+            key={key++}
+            href={match[4]}
+            className="text-accent underline underline-offset-2 hover:text-accent/80 transition"
+            target={match[4].startsWith("http") ? "_blank" : undefined}
+            rel={match[4].startsWith("http") ? "noopener noreferrer" : undefined}
+          >
+            {match[3]}
+          </a>
+        );
+      }
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < text.length) {
+      tokens.push(text.slice(lastIndex));
+    }
+    return tokens.length > 0 ? tokens : [text];
+  };
+
   const renderContent = (content: string) => {
-    return content.split("\n").map((line, i) => {
+    const lines = content.split("\n");
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Code blocks
+      if (line.startsWith("```")) {
+        const codeLines: string[] = [];
+        i++;
+        while (i < lines.length && !lines[i].startsWith("```")) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // skip closing ```
+        elements.push(
+          <pre key={`code-${i}`} className="my-4 overflow-x-auto rounded-lg bg-bg-tertiary p-4 text-sm">
+            <code className="text-text-secondary font-mono">{codeLines.join("\n")}</code>
+          </pre>
+        );
+        continue;
+      }
+
+      // Headings
       if (line.startsWith("## ")) {
-        return (
+        elements.push(
           <h2
             key={i}
             id={line.slice(3).replace(/\s+/g, "-").toLowerCase()}
@@ -86,45 +155,116 @@ export default async function BlogPostPage({
             {line.slice(3)}
           </h2>
         );
+        i++;
+        continue;
       }
       if (line.startsWith("### ")) {
-        return (
+        elements.push(
           <h3 key={i} className="mb-3 mt-8 text-lg font-bold text-text-primary">
             {line.slice(4)}
           </h3>
         );
+        i++;
+        continue;
       }
+
+      // Unordered list items (collect consecutive)
       if (line.startsWith("- ")) {
-        return (
-          <li key={i} className="ml-4 list-disc text-text-secondary">
-            {line.slice(2)}
-          </li>
+        const items: React.ReactNode[] = [];
+        while (i < lines.length && lines[i].startsWith("- ")) {
+          items.push(
+            <li key={i} className="text-text-secondary">
+              {renderInline(lines[i].slice(2))}
+            </li>
+          );
+          i++;
+        }
+        elements.push(
+          <ul key={`ul-${i}`} className="my-2 ml-6 list-disc space-y-1">
+            {items}
+          </ul>
         );
+        continue;
       }
-      if (line.startsWith("```")) return null;
+
+      // Ordered list items (collect consecutive)
+      if (/^\d+\.\s/.test(line)) {
+        const items: React.ReactNode[] = [];
+        while (i < lines.length && /^\d+\.\s/.test(lines[i])) {
+          items.push(
+            <li key={i} className="text-text-secondary">
+              {renderInline(lines[i].replace(/^\d+\.\s/, ""))}
+            </li>
+          );
+          i++;
+        }
+        elements.push(
+          <ol key={`ol-${i}`} className="my-2 ml-6 list-decimal space-y-1">
+            {items}
+          </ol>
+        );
+        continue;
+      }
+
+      // Table rows (collect consecutive)
       if (line.startsWith("| ")) {
-        return (
-          <p key={i} className="text-sm text-text-secondary font-mono">
-            {line}
-          </p>
-        );
+        const rows: string[][] = [];
+        while (i < lines.length && lines[i].startsWith("| ")) {
+          const cells = lines[i].split("|").filter((c) => c.trim() !== "");
+          // Skip separator rows like |---|---|
+          if (!/^[\s-:]+$/.test(cells.join(""))) {
+            rows.push(cells.map((c) => c.trim()));
+          }
+          i++;
+        }
+        if (rows.length > 0) {
+          const [header, ...body] = rows;
+          elements.push(
+            <div key={`table-${i}`} className="my-4 overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    {header.map((cell, ci) => (
+                      <th key={ci} className="px-3 py-2 text-left font-semibold text-text-primary">
+                        {cell}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {body.map((row, ri) => (
+                    <tr key={ri} className="border-b border-border/50">
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="px-3 py-2 text-text-secondary">
+                          {renderInline(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        continue;
       }
-      if (line.trim() === "") return <br key={i} />;
-      const parts = line.split(/\*\*(.*?)\*\*/g);
-      return (
+
+      // Empty line
+      if (line.trim() === "") {
+        elements.push(<br key={i} />);
+        i++;
+        continue;
+      }
+
+      // Regular paragraph with inline formatting
+      elements.push(
         <p key={i} className="leading-8 text-text-secondary">
-          {parts.map((part, j) =>
-            j % 2 === 1 ? (
-              <strong key={j} className="text-text-primary font-semibold">
-                {part}
-              </strong>
-            ) : (
-              part
-            )
-          )}
+          {renderInline(line)}
         </p>
       );
-    });
+      i++;
+    }
+    return elements;
   };
 
   const relatedPosts = BLOG_POSTS.filter((p) => p.slug !== post.slug)
